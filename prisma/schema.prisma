@@ -8,13 +8,17 @@ datasource db {
 }
 
 model Post {
-  id        String   @id @default(uuid())
-  title     String
-  content   String
-  author    String
-  published Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  id          String   @id @default(uuid())
+  title       String
+  image       String?                           // เพิ่มบรรทัดนี้
+  categoryId  Int      @map("category_id")
+  description String
+  content     String
+  statusId    Int      @map("status_id")
+  author      String   @default("Anonymous")
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("posts")
 }
@@ -24,7 +28,7 @@ model Author {
   name      String
   email     String   @unique
   bio       String?
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("authors")
 }
