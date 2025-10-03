@@ -1,18 +1,20 @@
 import express from 'express';
 import cors from 'cors';
 import prisma from './prisma.js';
+import authRouter from './auth/index.js';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use('/api/auth', authRouter);
 
-// Root
+
 app.get('/api', (req, res) => {
   res.json({ message: 'Ragnarok Blog API', version: '1.0.0' });
 });
 
-// Health
+
 app.get('/api/health', async (req, res) => {
   try {
     const count = await prisma.post.count();
@@ -22,7 +24,6 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Get posts
 app.get('/api/posts', async (req, res) => {
   try {
     const { published, page = 1, limit = 10, keyword = '' } = req.query;
@@ -49,7 +50,7 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
-// Get post by ID
+
 app.get('/api/posts/:id', async (req, res) => {
   try {
     const post = await prisma.post.findUnique({

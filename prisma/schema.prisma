@@ -7,15 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  avatar    String?
+  role      String   @default("user") // user, admin
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
 model Post {
   id          String   @id @default(uuid())
   title       String
-  image       String?                           // เพิ่มบรรทัดนี้
+  image       String?
   categoryId  Int      @map("category_id")
   description String
   content     String
   statusId    Int      @map("status_id")
-  author      String   @default("Anonymous")
+  author      String
   published   Boolean  @default(false)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
