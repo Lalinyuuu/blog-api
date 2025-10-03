@@ -5,9 +5,9 @@ import { JWT_SECRET } from '../middleware/auth.js';
 
 export async function register(req, res) {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, username } = req.body;
 
-    if (!email || !password || !name) {
+    if (!email || !password || !name || !username) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -15,15 +15,21 @@ export async function register(req, res) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const exists = await prisma.user.findUnique({ where: { email } });
-    if (exists) {
+    const emailExists = await prisma.user.findUnique({ where: { email } });
+    if (emailExists) {
       return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    const usernameExists = await prisma.user.findUnique({ where: { username } });
+    if (usernameExists) {
+      return res.status(400).json({ error: 'Username already taken' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
         email,
+        username,
         password: hashedPassword,
         name,
         avatar: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=200'
@@ -41,6 +47,7 @@ export async function register(req, res) {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         name: user.name,
         avatar: user.avatar,
         role: user.role

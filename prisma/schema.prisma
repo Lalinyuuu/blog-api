@@ -13,9 +13,10 @@ model User {
   password  String
   name      String
   avatar    String?
-  role      String   @default("user") // user, admin
+  role      String   @default("user")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  username  String   @unique @db.VarChar(255)
 
   @@map("users")
 }
@@ -23,14 +24,14 @@ model User {
 model Post {
   id          String   @id @default(uuid())
   title       String
-  image       String?
-  categoryId  Int      @map("category_id")
-  description String
   content     String
-  statusId    Int      @map("status_id")
   author      String
   published   Boolean  @default(false)
+  categoryId  Int      @map("category_id")
   createdAt   DateTime @default(now()) @map("created_at")
+  description String
+  image       String?
+  statusId    Int      @map("status_id")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("posts")
