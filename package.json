@@ -10,8 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "seed": "node prisma/seed.js",
-    "seed:ragnarok": "node prisma/seed-ragnarok.js"
+      "seed:ragnarok": "node prisma/seed-ragnarok.js",
+      "seed:full": "node prisma/seed-ragnarok-full.js"
   },
   "keywords": ["blog", "api", "prisma", "neon"],
   "author": "",
