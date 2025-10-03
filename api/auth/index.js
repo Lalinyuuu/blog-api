@@ -5,6 +5,7 @@ import { logout } from './logout.js';
 import { resetPassword } from './reset-password.js';
 import { verifyToken } from '../middleware/auth.js';
 import prisma from '../prisma.js';
+import { updateProfile } from './update-profile.js';
 
 const router = express.Router();
 
@@ -12,6 +13,7 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/logout', verifyToken, logout);
 router.post('/reset-password', verifyToken, resetPassword);
+router.put('/profile', verifyToken, updateProfile);
 
 // Get current user
 router.get('/me', verifyToken, async (req, res) => {
