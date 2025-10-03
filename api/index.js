@@ -2,16 +2,19 @@ app.get('/api/posts', async (req, res) => {
     try {
       const { published, page = 1, limit = 10, keyword = '' } = req.query;
       
-      const where = {
-        ...(published && { published: published === 'true' }),
-        ...(keyword && {
-          OR: [
-            { title: { contains: keyword, mode: 'insensitive' } },
-            { content: { contains: keyword, mode: 'insensitive' } },
-            { description: { contains: keyword, mode: 'insensitive' } }
-          ]
-        })
-      };
+      const where = {};
+      
+      if (published) {
+        where.published = published === 'true';
+      }
+      
+      if (keyword) {
+        where.OR = [
+          { title: { contains: keyword } },
+          { content: { contains: keyword } },
+          { description: { contains: keyword } }
+        ];
+      }
   
       const posts = await prisma.post.findMany({
         where,
@@ -22,6 +25,10 @@ app.get('/api/posts', async (req, res) => {
       
       res.json(posts);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error('Error fetching posts:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch posts',
+        message: error.message 
+      });
     }
   });
