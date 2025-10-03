@@ -1,28 +1,15 @@
-import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { 
-  initDatabase, 
-  getAllPosts, 
-  getPostById, 
-  createPost, 
-  updatePost, 
-  deletePost 
-} from './db.js';
+import prisma from './prisma.js';
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Initialize database
-initDatabase().catch(console.error);
-
-// Root endpoint
 app.get('/api', (req, res) => {
   res.json({ 
-    message: 'Blog API with Neon PostgreSQL',
+    message: 'Blog API with Prisma + Neon',
     version: '1.0.0',
     endpoints: {
       health: 'GET /api/health',
@@ -35,14 +22,13 @@ app.get('/api', (req, res) => {
   });
 });
 
-// Health check
 app.get('/api/health', async (req, res) => {
   try {
-    const posts = await getAllPosts();
+    const postsCount = await prisma.post.count();
     res.json({ 
       status: 'ok',
       database: 'connected',
-      postsCount: posts.length,
+      postsCount,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -53,91 +39,87 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Get all posts
 app.get('/api/posts', async (req, res) => {
   try {
-    const posts = await getAllPosts();
+    const { published } = req.query;
+    const posts = await prisma.post.findMany({
+      where: published ? { published: published === 'true' } : undefined,
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(posts);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get post by ID
 app.get('/api/posts/:id', async (req, res) => {
   try {
-    const post = await getPostById(req.params.id);
-    if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
+    const post = await prisma.post.findUnique({
+      where: { id: req.params.id }
+    });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
     res.json(post);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Create new post
 app.post('/api/posts', async (req, res) => {
   try {
-    const { title, content, author } = req.body;
-    
+    const { title, content, author, published } = req.body;
     if (!title || !content || !author) {
       return res.status(400).json({ 
         error: 'Missing required fields',
         required: ['title', 'content', 'author']
       });
     }
-    
-    const newPost = await createPost({ title, content, author });
+    const newPost = await prisma.post.create({
+      data: { title, content, author, published: published || false }
+    });
     res.status(201).json(newPost);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update post
 app.put('/api/posts/:id', async (req, res) => {
   try {
-    const { title, content, author } = req.body;
-    
-    if (!title || !content || !author) {
-      return res.status(400).json({ 
-        error: 'Missing required fields',
-        required: ['title', 'content', 'author']
-      });
-    }
-    
-    const updatedPost = await updatePost(req.params.id, { title, content, author });
-    
-    if (!updatedPost) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-    
+    const { title, content, author, published } = req.body;
+    const updatedPost = await prisma.post.update({
+      where: { id: req.params.id },
+      data: {
+        ...(title && { title }),
+        ...(content && { content }),
+        ...(author && { author }),
+        ...(published !== undefined && { published })
+      }
+    });
     res.json(updatedPost);
   } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Post not found' });
+    }
     res.status(500).json({ error: error.message });
   }
 });
 
-// Delete post
 app.delete('/api/posts/:id', async (req, res) => {
   try {
-    const deletedPost = await deletePost(req.params.id);
-    
-    if (!deletedPost) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-    
+    const deletedPost = await prisma.post.delete({
+      where: { id: req.params.id }
+    });
     res.json({ 
       message: 'Post deleted successfully',
       post: deletedPost 
     });
   } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Post not found' });
+    }
     res.status(500).json({ error: error.message });
   }
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ 
     error: 'Not Found',
