@@ -2,17 +2,19 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import prisma from '../prisma.js';
 import { JWT_SECRET } from '../middleware/auth.js';
+import { validateRegister } from '../utils/validation.js';
 
 export async function register(req, res) {
   try {
     const { email, password, name, username } = req.body;
 
-    if (!email || !password || !name || !username) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    // Validate input
+    const validationErrors = validateRegister(email, password, name, username);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ 
+        error: validationErrors[0].message,
+        errors: validationErrors 
+      });
     }
 
     const emailExists = await prisma.user.findUnique({ where: { email } });

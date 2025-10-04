@@ -1,26 +1,36 @@
 import express from 'express';
-import { register } from './register.js';
+import prisma from '../prisma.js';
 import { login } from './login.js';
+import { register } from './register.js';
 import { logout } from './logout.js';
+import { updateProfile } from './update-profile.js';
 import { resetPassword } from './reset-password.js';
 import { verifyToken } from '../middleware/auth.js';
-import prisma from '../prisma.js';
-import { updateProfile } from './update-profile.js';
 
 const router = express.Router();
 
-router.post('/register', register);
+// Public routes
 router.post('/login', login);
+router.post('/register', register);
+
+// Protected routes
 router.post('/logout', verifyToken, logout);
-router.post('/reset-password', verifyToken, resetPassword);
 router.put('/profile', verifyToken, updateProfile);
+router.put('/reset-password', verifyToken, resetPassword);
 
 // Get current user
 router.get('/me', verifyToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
-      select: { id: true, email: true, name: true, avatar: true, role: true }
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        avatar: true,
+        role: true
+      }
     });
 
     if (!user) {
@@ -29,6 +39,7 @@ router.get('/me', verifyToken, async (req, res) => {
 
     res.json(user);
   } catch (error) {
+    console.error('Get user error:', error);
     res.status(500).json({ error: error.message });
   }
 });
