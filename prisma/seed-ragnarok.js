@@ -82,7 +82,7 @@ async function main() {
     })
   ]);
 
-  console.log(`✅ Created ${posts.length} Ragnarok posts\n`);
+  console.log(`Created ${posts.length} Ragnarok posts\n`);
   posts.forEach((post, i) => {
     console.log(`   ${i + 1}. ${post.title}`);
   });
