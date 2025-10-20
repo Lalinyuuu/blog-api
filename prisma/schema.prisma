@@ -10,39 +10,172 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  username  String   @unique @db.VarChar(255)
   password  String
   name      String
   avatar    String?
+  avatarPublicId String? @map("avatar_public_id")
+  bio       String?
   role      String   @default("user")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-  username  String   @unique @db.VarChar(255)
+
+  posts             Post[]
+  comments          Comment[]
+  likes             Like[]
+  savedPosts        SavedPost[]
+  notifications     Notification[] @relation("UserNotifications")
+  sentNotifications Notification[] @relation("FromUserNotifications")
+  
+  // Follow relations
+  followers  Follow[] @relation("Follower")
+  following  Follow[] @relation("Following")
+  
+  // Share relations
+  shares     Share[]
 
   @@map("users")
 }
 
-model Post {
+model Category {
   id          String   @id @default(uuid())
-  title       String
-  content     String
-  author      String
-  published   Boolean  @default(false)
-  categoryId  Int      @map("category_id")
+  name        String   @unique @db.VarChar(50)
+  slug        String   @unique
+  description String?  @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
-  description String
-  image       String?
-  statusId    Int      @map("status_id")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
+  posts Post[]
+
+  @@map("categories")
+}
+
+model Post {
+  id            String    @id @default(uuid())
+  title         String
+  slug          String    @unique
+  content       String    @db.Text
+  description   String?
+  image         String?
+  imagePublicId String?   @map("image_public_id")
+  category      String    // Keep old field temporarily
+  categoryId    String?   @map("category_id") // Make optional for migration
+  status        String    @default("draft")
+  viewCount     Int       @default(0) @map("view_count")
+  authorId      String    @map("author_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+  publishedAt   DateTime? @map("published_at")
+  bylineName    String?
+  bylineAvatar  String?
+
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  categoryRelation Category?    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  comments      Comment[]
+  likes         Like[]
+  savedPosts    SavedPost[]
+  shares        Share[]
+  notifications Notification[]
+
+  @@index([authorId])
+  @@index([status])
+  @@index([categoryId])
   @@map("posts")
 }
 
-model Author {
+model Comment {
   id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  bio       String?
+  content   String   @db.Text
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@map("authors")
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("likes")
+}
+
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  type       String
+  postId     String?  @map("post_id")
+  fromUserId String   @map("from_user_id")
+  message    String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  fromUser User  @relation("FromUserNotifications", fields: [fromUserId], references: [id], onDelete: Cascade)
+  post     Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@map("notifications")
+}
+
+model SavedPost {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("saved_posts")
+}
+
+model Share {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String?  @map("user_id") // Optional for anonymous shares
+  platform  String   // 'facebook', 'twitter', 'linkedin', 'copy_link', etc.
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+  @@index([platform])
+  @@map("shares")
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
 }
