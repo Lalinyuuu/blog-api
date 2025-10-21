@@ -1,44 +1,24 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import {
-  validateRegistration,
-  validatePasswordReset,
-  validateEmailField,
-  validatePasswordField,
-  validateUsernameField,
-  validateNameField
-} from '../middleware/validation.js';
-import {
   register,
   login,
   updateProfile,
   getMe,
   resetPassword,
-  logout,              
+  logout,
 } from '../controllers/auth/authController.js';
 
 const router = express.Router();
 
-// public
 router.post('/register', register);
 router.post('/login', login);
-
-router.post('/logout', logout);  
-router.get('/logout', logout);     
-
-// protected
+router.post('/logout', logout);
+router.get('/logout', logout);
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
 router.put('/reset-password', authenticate, resetPassword);
 
-// Alternative routes using express-validator (uncomment if you prefer this approach)
-// router.post('/register', validateRegistrationWithExpressValidator, register);
-// router.put('/reset-password', authenticate, validatePasswordResetWithExpressValidator, resetPassword);
-
-/**
- * Real-time validation endpoints
- */
-// Check email availability
 router.post('/check-email', async (req, res) => {
   try {
     const { email } = req.body;
@@ -62,7 +42,6 @@ router.post('/check-email', async (req, res) => {
   }
 });
 
-// Check username availability
 router.post('/check-username', async (req, res) => {
   try {
     const { username } = req.body;
@@ -86,7 +65,6 @@ router.post('/check-username', async (req, res) => {
   }
 });
 
-// Check password strength
 router.post('/check-password', (req, res) => {
   const { password } = req.body;
   

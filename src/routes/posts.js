@@ -5,7 +5,8 @@ import {
   getPostBySlug, 
   getPostById,
   getPostComments,
-  getPostInteractionStats
+  getPostInteractionStats,
+  getRelatedPosts
 } from '../controllers/posts/postController.js';
 import {
   likePost,
@@ -20,21 +21,15 @@ const router = express.Router();
 
 router.get('/', listPosts);
 router.get('/slug/:slug', getPostBySlug);
+router.get('/:id/related', getRelatedPosts);
 router.get('/:id', getPostById);
 
-// สถิติการโต้ตอบ
 router.get('/:id/stats', getPostInteractionStats);
-
-// Like/Unlike
 router.post('/:id/like', authenticate, likePost);
-
-// Comments
 router.get('/:id/comments', getPostComments);
 router.post('/:id/comments', authenticate, createComment);
 router.put('/:postId/comments/:commentId', authenticate, updateComment);
 router.delete('/:postId/comments/:commentId', authenticate, deleteComment);
-
-// Share
 router.post('/:id/share', authenticate, sharePost);
 
 router.post('/admin/posts', authenticate, (req, res) => adminCreatePost(req, res));
