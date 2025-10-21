@@ -1,6 +1,6 @@
 import prisma from '../../utils/prisma.js';
+import { transformPostImage } from '../../utils/cloudinaryTransform.js';
 
-// Get all posts with pagination and search
 export const listPosts = async (req, res) => {
   try {
     const page  = parseInt(req.query.page ?? 1, 10);
@@ -11,7 +11,6 @@ export const listPosts = async (req, res) => {
     if (req.query.status)  where.status   = req.query.status;
     if (req.query.category) where.category = req.query.category;
     
-    // Search functionality
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -36,8 +35,13 @@ export const listPosts = async (req, res) => {
       prisma.post.count({ where }),
     ]);
 
+    const transformedPosts = posts.map(post => ({
+      ...post,
+      image: post.image ? transformPostImage(post.image) : null
+    }));
+
     res.json({
-      posts,
+      posts: transformedPosts,
       currentPage: page,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       total,
@@ -48,7 +52,6 @@ export const listPosts = async (req, res) => {
   }
 };
 
-// Get post by slug
 export const getPostBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
@@ -72,12 +75,10 @@ export const getPostBySlug = async (req, res) => {
   }
 };
 
-// Get post by ID
 export const getPostById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Try both numeric and string ID
     const isNumericId = /^\d+$/.test(id);
     const whereById = isNumericId ? { id: Number(id) } : { id };
 
@@ -95,7 +96,6 @@ export const getPostById = async (req, res) => {
       },
     });
 
-    // Try string ID if numeric didn't work
     if (!post && isNumericId) {
       post = await prisma.post.findUnique({
         where: { id: id },
@@ -119,7 +119,6 @@ export const getPostById = async (req, res) => {
   }
 };
 
-// Get post comments
 export const getPostComments = async (req, res) => {
   try {
     const { id } = req.params;
@@ -153,7 +152,6 @@ export const getPostComments = async (req, res) => {
   }
 };
 
-// Get post interaction stats
 export const getPostInteractionStats = async (req, res) => {
   try {
     const { id } = req.params;
@@ -182,5 +180,82 @@ export const getPostInteractionStats = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get interaction stats' });
+  }
+};
+
+export const getRelatedPosts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit ?? 3, 10);
+
+    const currentPost = await prisma.post.findUnique({
+      where: { id },
+      select: { categoryId: true, category: true, id: true }
+    });
+
+    if (!currentPost) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const relatedPosts = await prisma.post.findMany({
+      where: {
+        AND: [
+          { 
+            OR: [
+              { categoryId: currentPost.categoryId },
+              { category: currentPost.category }
+            ]
+          },
+          { id: { not: id } },
+          { status: 'published' }
+        ]
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        image: true,
+        description: true,
+        category: true,
+        createdAt: true,
+        author: { 
+          select: { 
+            id: true,
+            name: true,
+            username: true,
+            avatar: true
+          } 
+        },
+        categoryRelation: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    });
+
+    const transformedPosts = relatedPosts.map(post => ({
+      ...post,
+      image: post.image ? transformPostImage(post.image) : null
+    }));
+
+    res.json({
+      success: true,
+      posts: transformedPosts,
+      data: transformedPosts
+    });
+  } catch (error) {
+    console.error('Get related posts error:', error);
+    res.status(500).json({ error: 'Failed to get related posts' });
   }
 };

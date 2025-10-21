@@ -1,20 +1,22 @@
-// routes/user.js
 import express from 'express';
 import { 
   getUserProfile, 
   getUserPosts, 
   getUserStatistics 
 } from '../controllers/users/userController.js';
+import { getUserSuggestions } from '../controllers/users/userSuggestionsController.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
+router.get('/suggestions', (req, res, next) => {
+  if (req.headers.authorization) {
+    return authenticate(req, res, next);
+  }
+  next();
+}, getUserSuggestions);
 
-// Get User Profile
 router.get('/:userId', getUserProfile);
-
-// Get User Posts
 router.get('/:userId/posts', getUserPosts);
-
-// Get User Statistics
 router.get('/:userId/statistics', getUserStatistics);
 
 export default router;
