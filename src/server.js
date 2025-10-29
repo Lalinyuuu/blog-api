@@ -50,14 +50,15 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
+      'http://localhost:3000',
       'http://localhost:5173',
-      'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
       'https://mycoderoar.vercel.app',
+      'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
       ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
     ];
     
     // Allow any Vercel preview URL (for dynamic deployments)
-    const isVercelPreview = origin.includes('.vercel.app') || origin.includes('vercel.app');
+    const isVercelPreview = origin && (origin.includes('.vercel.app') || origin.includes('vercel.app'));
     
     if (allowedOrigins.includes(origin) || isVercelPreview) {
       callback(null, true);
@@ -78,7 +79,16 @@ app.use(cors({
     'accept',
     'origin',
     'access-control-request-method',
-    'access-control-request-headers'
+    'access-control-request-headers',
+    'X-CSRF-Token',
+    'X-Requested-With',
+    'Accept',
+    'Accept-Version',
+    'Content-Length',
+    'Content-MD5',
+    'Content-Type',
+    'Date',
+    'X-Api-Version'
   ],
   optionsSuccessStatus: 200, // Some legacy browsers choke on 204
   exposedHeaders: ['Content-Range', 'X-Content-Range']
@@ -88,9 +98,10 @@ app.use(cors({
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
+    'http://localhost:3000',
     'http://localhost:5173',
-    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
     'https://mycoderoar.vercel.app',
+    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
   ];
   
@@ -102,7 +113,8 @@ app.use((req, res, next) => {
   }
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
+  res.header('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
   next();
 });
 // Handle both JSON (base64) and multipart (form) uploads
@@ -112,9 +124,10 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Handle preflight requests for all routes
 app.options('*', (req, res) => {
   const allowedOrigins = [
+    'http://localhost:3000',
     'http://localhost:5173',
-    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
     'https://mycoderoar.vercel.app',
+    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
   ];
   
@@ -129,8 +142,9 @@ app.options('*', (req, res) => {
   }
   
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
   res.header('Access-Control-Max-Age', '86400'); // 24 hours
   res.sendStatus(200);
 });
@@ -164,9 +178,10 @@ app.use('/notifications', notificationRoutes);
 app.get('/health', (req, res) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
+    'http://localhost:3000',
     'http://localhost:5173',
-    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
     'https://mycoderoar.vercel.app',
+    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
   ];
   
@@ -176,6 +191,8 @@ app.get('/health', (req, res) => {
     res.header('Access-Control-Allow-Origin', origin);
   }
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
   res.json({ status: 'OK' });
 });
 
