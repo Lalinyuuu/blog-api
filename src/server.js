@@ -80,6 +80,7 @@ app.use((req, res, next) => {
   
   next();
 });
+
 // Handle both JSON (base64) and multipart (form) uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
