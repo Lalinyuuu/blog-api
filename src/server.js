@@ -42,6 +42,8 @@ const limiter = rateLimit({
 
 // Apply rate limiter to all routes
 app.use(limiter);
+
+// CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -54,18 +56,15 @@ app.use(cors({
       ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
     ];
     
-    // Log the origin for debugging
-    console.log('CORS check for origin:', origin);
-    console.log('Allowed origins:', allowedOrigins);
+    // Allow any Vercel preview URL (for dynamic deployments)
+    const isVercelPreview = origin.includes('.vercel.app') || origin.includes('vercel.app');
     
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin) || isVercelPreview) {
       callback(null, true);
     } else if (process.env.NODE_ENV !== 'production') {
       // In development, be more permissive
-      console.log('Development mode: allowing origin:', origin);
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -81,8 +80,31 @@ app.use(cors({
     'access-control-request-method',
     'access-control-request-headers'
   ],
-  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
+    'https://mycoderoar.vercel.app',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+  ];
+  
+  // Check if origin is Vercel URL
+  const isVercelPreview = origin && (origin.includes('.vercel.app') || origin.includes('vercel.app'));
+  
+  if (origin && (allowedOrigins.includes(origin) || isVercelPreview)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers');
+  next();
+});
 // Handle both JSON (base64) and multipart (form) uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -97,9 +119,9 @@ app.options('*', (req, res) => {
   ];
   
   const origin = req.headers.origin;
-  console.log('Preflight request from origin:', origin);
+  const isVercelPreview = origin && (origin.includes('.vercel.app') || origin.includes('vercel.app'));
   
-  if (allowedOrigins.includes(origin)) {
+  if (origin && (allowedOrigins.includes(origin) || isVercelPreview)) {
     res.header('Access-Control-Allow-Origin', origin);
   } else if (process.env.NODE_ENV !== 'production') {
     // In development, be more permissive
@@ -140,6 +162,20 @@ app.use('/statistics', statisticsRoutes);
 app.use('/notifications', notificationRoutes);
 
 app.get('/health', (req, res) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
+    'https://mycoderoar.vercel.app',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+  ];
+  
+  const isVercelPreview = origin && (origin.includes('.vercel.app') || origin.includes('vercel.app'));
+  
+  if (origin && (allowedOrigins.includes(origin) || isVercelPreview)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
   res.json({ status: 'OK' });
 });
 
