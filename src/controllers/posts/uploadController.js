@@ -44,10 +44,6 @@ const deleteCloudinaryImage = async (publicId, context = 'unknown') => {
 
 export const uploadAvatar = async (req, res) => {
   try {
-    // Set CORS headers for upload responses
-    res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:5173');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    
     const userId = req.user.userId;
 
     if (req.originalUrl.includes('/post')) {
@@ -223,10 +219,6 @@ export const uploadAvatar = async (req, res) => {
 
 export const uploadPostImage = async (req, res) => {
   try {
-    // Set CORS headers for upload responses
-    res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:5173');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    
     if (req.originalUrl.includes('/avatar')) {
       return res.status(400).json({ 
         error: 'Wrong endpoint! Use /upload/post for post images, not /upload/avatar!' 
