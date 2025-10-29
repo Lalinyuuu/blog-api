@@ -54,9 +54,18 @@ app.use(cors({
       ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
     ];
     
+    // Log the origin for debugging
+    console.log('CORS check for origin:', origin);
+    console.log('Allowed origins:', allowedOrigins);
+    
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
+    } else if (process.env.NODE_ENV !== 'production') {
+      // In development, be more permissive
+      console.log('Development mode: allowing origin:', origin);
+      callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -71,14 +80,15 @@ app.use(cors({
     'origin',
     'access-control-request-method',
     'access-control-request-headers'
-  ]
+  ],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 // Handle both JSON (base64) and multipart (form) uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Handle preflight requests for upload routes
-app.options('/api/upload/*', (req, res) => {
+// Handle preflight requests for all routes
+app.options('*', (req, res) => {
   const allowedOrigins = [
     'http://localhost:5173',
     'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
@@ -87,14 +97,19 @@ app.options('/api/upload/*', (req, res) => {
   ];
   
   const origin = req.headers.origin;
+  console.log('Preflight request from origin:', origin);
+  
   if (allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*');
+  } else if (process.env.NODE_ENV !== 'production') {
+    // In development, be more permissive
+    res.header('Access-Control-Allow-Origin', origin || '*');
   }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers');
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
   res.sendStatus(200);
 });
 
