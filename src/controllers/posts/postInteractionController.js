@@ -70,8 +70,9 @@ export const unlikePost = async (req, res) => {
 export const createComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const { content, parentId } = req.body;
     const userId = req.user.userId;
+
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'Content is required' });
@@ -80,15 +81,47 @@ export const createComment = async (req, res) => {
     const post = await prisma.post.findUnique({ where: { id } });
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
+    // If parentId is provided, validate that the parent comment exists and belongs to the same post
+    if (parentId) {
+      const parentComment = await prisma.comment.findFirst({
+        where: {
+          id: parentId,
+          postId: id
+        },
+        select: { id: true, userId: true }
+      });
+
+      if (!parentComment) {
+        return res.status(404).json({ error: 'Parent comment not found or does not belong to this post' });
+      }
+    }
+
     const comment = await prisma.comment.create({
       data: {
         content,
         postId: id,
-        userId
+        userId,
+        parentId: parentId || null
       },
       include: {
         user: {
           select: { id: true, name: true, avatar: true }
+        },
+        parent: parentId ? {
+          select: {
+            id: true,
+            content: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                username: true
+              }
+            }
+          }
+        } : false,
+        _count: {
+          select: { likes: true }
         }
       }
     });
@@ -133,7 +166,33 @@ export const createComment = async (req, res) => {
       });
     }
 
-    res.json(comment);
+    // Format comment response
+    const formattedComment = {
+      id: comment.id,
+      content: comment.content,
+      postId: comment.postId,
+      userId: comment.userId,
+      parentId: comment.parentId,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      user: comment.user,
+      parent: comment.parent || null,
+      liked: false, // New comment, not liked yet
+      likesCount: 0, // New comment, no likes yet
+      replies: [] // New comment, no replies yet
+    };
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      comment: formattedComment,
+      commentsCount: await prisma.comment.count({
+        where: { 
+          postId: id,
+          parentId: null // Only count top-level comments
+        }
+      })
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

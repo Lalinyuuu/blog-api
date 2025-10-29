@@ -4,6 +4,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import routes from './routes/index.js';
 import notificationRoutes from './routes/notification.js';
+import statisticsRoutes from './routes/statistics.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -25,22 +26,71 @@ app.use((req, res, next) => {
 });
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { error: 'Too many requests' }
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 1000 requests สำหรับ dev
+  message: { error: 'Too many requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => process.env.NODE_ENV !== 'production' // Skip rate limit in development
 });
 
-app.use(limiter);
+// Only use rate limiter in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(limiter);
+}
 app.use(cors({
   origin: process.env.FRONTEND_URL || ['http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'x-request-id',
+    'x-requested-with',
+    'accept',
+    'origin',
+    'access-control-request-method',
+    'access-control-request-headers'
+  ]
 }));
+// Handle both JSON (base64) and multipart (form) uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Handle preflight requests for upload routes
+app.options('/api/upload/*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:5173');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
+
+// Special handling for upload routes to support both base64 and multipart
+app.use('/api/upload', (req, res, next) => {
+  // If it's a JSON request with base64 data, don't parse as multipart
+  if (req.headers['content-type']?.includes('application/json')) {
+    return next();
+  }
+  // Otherwise, let it be handled by formidable in the controller
+  next();
+});
+
+// Increase timeout for file uploads
+app.use((req, res, next) => {
+  // Set timeout to 5 minutes for upload routes
+  if (req.path.includes('/upload')) {
+    req.setTimeout(300000); // 5 minutes
+    res.setTimeout(300000); // 5 minutes
+  }
+  next();
+});
 app.use('/api', routes);
 app.use('/api/notifications', notificationRoutes);
+
+// Add direct routes without /api prefix for frontend compatibility
+app.use('/statistics', statisticsRoutes);
+app.use('/notifications', notificationRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK' });
@@ -55,6 +105,34 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled Promise Rejection:', err);
+  // Don't exit the process - just log the error
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  // Don't exit the process - just log the error
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ Process terminated');
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('👋 SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ Process terminated');
+    process.exit(0);
+  });
 });

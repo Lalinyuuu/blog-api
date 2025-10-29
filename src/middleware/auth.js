@@ -7,6 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 
 export const authenticate = (req, res, next) => {
   try {
+    
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -41,4 +42,38 @@ export const requireAdmin = (req, res, next) => {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
+};
+
+// Optional authentication - continues even without valid token
+export const optionalAuthenticate = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // No token provided, continue as anonymous user
+      req.user = null;
+      return next();
+    }
+
+    const token = authHeader.slice(7);
+    
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.user = {
+        userId: decoded.userId,
+        email: decoded.email,
+        role: decoded.role,
+        name: decoded.name
+      };
+    } catch (tokenError) {
+      // Invalid or expired token, continue as anonymous user
+      req.user = null;
+    }
+    
+    next();
+  } catch (error) {
+    // Any other error, continue as anonymous user
+    req.user = null;
+    next();
+  }
 };

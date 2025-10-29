@@ -4,4 +4,5 @@ export * from './saveController.js';
 export * from './shareController.js';
 export * from './commentController.js';
 export * from './commentStatsController.js';
+export * from './commentLikeController.js';
 export * from './interactionController.js';

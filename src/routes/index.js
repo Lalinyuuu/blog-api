@@ -4,6 +4,7 @@ import postRoutes from './posts.js';
 import adminRoutes from './admin.js';
 import notificationRoutes from './notification.js';
 import categoryRoutes from './categories.js';
+import publicCategoryRoutes from './publicCategories.js';
 import uploadRoutes from './upload.js';
 import followRoutes from './follow.js';
 import interactionRoutes from './interactions.js';
@@ -18,6 +19,7 @@ router.use('/posts', postRoutes);
 router.use('/admin', adminRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/admin/categories', categoryRoutes);
+router.use('/categories', publicCategoryRoutes); // Public categories endpoint
 router.use('/upload', uploadRoutes);
 router.use('/follow', followRoutes);
 router.use('/interactions', interactionRoutes);

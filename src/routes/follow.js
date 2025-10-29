@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.js';
 import {
   followUser,
   unfollowUser,
@@ -64,7 +64,7 @@ router.get('/users/:userId/follow-stats', getFollowStats);
 /**
  * Feed Route
  */
-// Get feed (posts from users you follow)
-router.get('/feed', getFeed);
+// Get feed (posts from users you follow) - optional auth
+router.get('/feed', optionalAuthenticate, getFeed);
 
 export default router;

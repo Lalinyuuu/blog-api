@@ -121,10 +121,35 @@ export const createPost = async (req, res) => {
       status = 'draft',
       bylineName,
       bylineAvatar,
+      tags = [],
     } = req.body;
 
-    if (!title || !title.trim()) {
-      return res.status(400).json({ error: 'Title is required' });
+    // Very strict validation for title
+    if (!title || typeof title !== 'string') {
+      return res.status(400).json({ error: 'Title is required and must be a string' });
+    }
+    
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle || trimmedTitle.length === 0) {
+      return res.status(400).json({ error: 'Title cannot be empty' });
+    }
+    
+    if (trimmedTitle.length < 3) {
+      return res.status(400).json({ error: 'Title must be at least 3 characters' });
+    }
+    
+    // Validate content
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({ error: 'Content is required and must be a string' });
+    }
+    
+    const trimmedContent = content.trim();
+    if (!trimmedContent || trimmedContent.length === 0) {
+      return res.status(400).json({ error: 'Content cannot be empty' });
+    }
+    
+    if (trimmedContent.length < 10) {
+      return res.status(400).json({ error: 'Content must be at least 10 characters' });
     }
 
     if (!req.user?.userId) {
@@ -134,18 +159,22 @@ export const createPost = async (req, res) => {
     const author = await prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!author) return res.status(401).json({ error: 'Invalid author' });
 
-    const slug = await makeUniqueSlug(title);
+    const slug = await makeUniqueSlug(trimmedTitle);
+
+    // Ensure tags is an array
+    const tagsArray = Array.isArray(tags) ? tags : [];
 
     const post = await prisma.post.create({
       data: {
-        title: title.trim(),
+        title: trimmedTitle,
         slug,
-        description,
-        content,
+        description: description?.trim() || '',
+        content: trimmedContent,
         category,
         image,
         imagePublicId,
         status,
+        tags: tagsArray,
         authorId: author.id,
         publishedAt: status === 'published' ? new Date() : null,
 
@@ -203,19 +232,63 @@ export const updatePost = async (req, res) => {
       image,
       bylineName,
       bylineAvatar,
+      tags,
     } = req.body;
 
     const existingPost = await prisma.post.findUnique({ where: { id } });
     if (!existingPost) return res.status(404).json({ error: 'Post not found' });
 
+    // Very strict validation for title if provided
+    if (title !== undefined) {
+      if (!title || typeof title !== 'string') {
+        return res.status(400).json({ error: 'Title must be a string' });
+      }
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle || trimmedTitle.length === 0) {
+        return res.status(400).json({ error: 'Title cannot be empty' });
+      }
+      if (trimmedTitle.length < 3) {
+        return res.status(400).json({ error: 'Title must be at least 3 characters' });
+      }
+      // Check for "Untitled Post" or similar invalid titles
+      if (trimmedTitle.toLowerCase().includes('untitled') || trimmedTitle === 'Untitled Post') {
+        return res.status(400).json({ error: 'Please enter a proper title for your post' });
+      }
+    } else {
+      // If no title provided, check if existing post has valid title
+      const existingTitle = existingPost.title?.trim() || '';
+      if (!existingTitle || existingTitle.length < 3) {
+        return res.status(400).json({ error: 'Post must have a valid title before publishing' });
+      }
+      // Check for "Untitled Post" or similar invalid titles
+      if (existingTitle.toLowerCase().includes('untitled') || existingTitle === 'Untitled Post') {
+        return res.status(400).json({ error: 'Please enter a proper title for your post' });
+      }
+    }
+    
+    // Very strict validation for content if provided
+    if (content !== undefined) {
+      if (!content || typeof content !== 'string') {
+        return res.status(400).json({ error: 'Content must be a string' });
+      }
+      const trimmedContent = content.trim();
+      if (!trimmedContent || trimmedContent.length === 0) {
+        return res.status(400).json({ error: 'Content cannot be empty' });
+      }
+      if (trimmedContent.length < 10) {
+        return res.status(400).json({ error: 'Content must be at least 10 characters' });
+      }
+    }
+
     const data = {};
-    if (title !== undefined) data.title = title;
-    if (content !== undefined) data.content = content;
+    if (title !== undefined) data.title = title.trim();
+    if (content !== undefined) data.content = content.trim();
     if (description !== undefined) data.description = description;
     if (category !== undefined) data.category = category;
     if (image !== undefined) data.image = image;
     if (bylineName !== undefined) data.bylineName = bylineName;
     if (bylineAvatar !== undefined) data.bylineAvatar = bylineAvatar;
+    if (tags !== undefined) data.tags = Array.isArray(tags) ? tags : [];
 
     if (status) {
       data.status = status;
