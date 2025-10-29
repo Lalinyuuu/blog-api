@@ -9,15 +9,15 @@ import {
 import {
   getUserComments
 } from '../controllers/interactions/commentStatsController.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Add Comment
 router.post('/posts/:postId/comments', authenticate, addComment);
 
-// Get Comments
-router.get('/posts/:postId/comments', getComments);
+// Get Comments (with optional auth to get like status)
+router.get('/posts/:postId/comments', optionalAuthenticate, getComments);
 
 // Update Comment
 router.put('/comments/:commentId', authenticate, updateComment);

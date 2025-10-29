@@ -45,7 +45,6 @@ router.get('/test', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('getAllCategories error:', error);
     res.status(500).json({ error: 'Failed to get categories' });
   }
 });

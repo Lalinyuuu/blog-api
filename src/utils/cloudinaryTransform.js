@@ -29,14 +29,14 @@ export const transformCloudinaryUrl = (imageUrl, options = {}) => {
 };
 
 /**
- * Transform post image to 4:3 aspect ratio
+ * Transform post image to 16:9 aspect ratio
  */
 export const transformPostImage = (imageUrl) => {
   return transformCloudinaryUrl(imageUrl, {
-    width: 1200,
-    height: 900,
+    width: 1920,
+    height: 1080,
     crop: 'fill',
-    gravity: 'auto',
+    gravity: 'center',
     quality: 'auto:good'
   });
 };
@@ -49,7 +49,7 @@ export const transformAvatar = (imageUrl, size = 400) => {
     width: size,
     height: size,
     crop: 'fill',
-    gravity: 'face',
+    gravity: 'center',
     quality: 'auto:good'
   });
 };
