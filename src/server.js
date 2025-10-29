@@ -43,37 +43,41 @@ const limiter = rateLimit({
 // Apply rate limiter to all routes
 app.use(limiter);
 
-// CORS configuration
+// CORS configuration - More explicit approach
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://mycoderoar.vercel.app',
+  'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+];
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://mycoderoar.vercel.app',
-      'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
-      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
-    ];
+    if (!origin) {
+      console.log('CORS check - No origin (allowed)');
+      return callback(null, true);
+    }
     
     // Allow any Vercel preview URL (for dynamic deployments)
-    const isVercelPreview = origin && (origin.includes('.vercel.app') || origin.includes('vercel.app'));
+    const isVercelPreview = origin.includes('.vercel.app') || origin.includes('vercel.app');
     
     // Debug logging
     console.log('CORS check - Origin:', origin);
     console.log('CORS check - Is Vercel preview:', isVercelPreview);
     console.log('CORS check - Allowed origins:', allowedOrigins);
+    console.log('CORS check - Origin in allowed list:', allowedOrigins.includes(origin));
     
     if (allowedOrigins.includes(origin) || isVercelPreview) {
-      console.log('CORS check - ALLOWED');
+      console.log('CORS check - ALLOWED for origin:', origin);
       callback(null, true);
     } else if (process.env.NODE_ENV !== 'production') {
       // In development, be more permissive
-      console.log('CORS check - ALLOWED (development mode)');
+      console.log('CORS check - ALLOWED (development mode) for origin:', origin);
       callback(null, true);
     } else {
-      console.log('CORS check - BLOCKED');
+      console.log('CORS check - BLOCKED for origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -94,15 +98,33 @@ app.use(cors({
     'Accept-Version',
     'Content-Length',
     'Content-MD5',
-    'Content-Type',
     'Date',
     'X-Api-Version'
   ],
-  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  optionsSuccessStatus: 200,
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
 
-// CORS is handled by the cors package above
+// Fallback CORS handler for any missed cases
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  if (origin) {
+    const isVercelPreview = origin.includes('.vercel.app') || origin.includes('vercel.app');
+    const isAllowed = allowedOrigins.includes(origin) || isVercelPreview;
+    
+    if (isAllowed) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
+      res.header('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
+    }
+  }
+  
+  next();
+});
+
 // Handle both JSON (base64) and multipart (form) uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
