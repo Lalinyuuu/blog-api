@@ -27,24 +27,56 @@ app.use((req, res, next) => {
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 1000 requests สำหรับ dev
+  max: process.env.NODE_ENV === 'production' ? 1000 : 1000, // 1000 requests for both dev and production
   message: { error: 'Too many requests' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => process.env.NODE_ENV !== 'production' // Skip rate limit in development
+  skip: (req) => {
+    // Skip rate limit for health checks and specific routes
+    if (req.path === '/health' || req.path.startsWith('/api/upload')) {
+      return true;
+    }
+    return process.env.NODE_ENV !== 'production';
+  }
 });
 
-// Only use rate limiter in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(limiter);
-}
+// Apply rate limiter to all routes
+app.use(limiter);
+
+// CORS configuration
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
-    'https://mycoderoar.vercel.app',
-    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://mycoderoar.vercel.app',
+      'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
+      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+    ];
+    
+    // Allow any Vercel preview URL (for dynamic deployments)
+    const isVercelPreview = origin && (origin.includes('.vercel.app') || origin.includes('vercel.app'));
+    
+    // Debug logging
+    console.log('CORS check - Origin:', origin);
+    console.log('CORS check - Is Vercel preview:', isVercelPreview);
+    console.log('CORS check - Allowed origins:', allowedOrigins);
+    
+    if (allowedOrigins.includes(origin) || isVercelPreview) {
+      console.log('CORS check - ALLOWED');
+      callback(null, true);
+    } else if (process.env.NODE_ENV !== 'production') {
+      // In development, be more permissive
+      console.log('CORS check - ALLOWED (development mode)');
+      callback(null, true);
+    } else {
+      console.log('CORS check - BLOCKED');
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
@@ -55,31 +87,27 @@ app.use(cors({
     'accept',
     'origin',
     'access-control-request-method',
-    'access-control-request-headers'
-  ]
+    'access-control-request-headers',
+    'X-CSRF-Token',
+    'X-Requested-With',
+    'Accept',
+    'Accept-Version',
+    'Content-Length',
+    'Content-MD5',
+    'Content-Type',
+    'Date',
+    'X-Api-Version'
+  ],
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
+
+// CORS is handled by the cors package above
 // Handle both JSON (base64) and multipart (form) uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Handle preflight requests for upload routes
-app.options('/api/upload/*', (req, res) => {
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
-    'https://mycoderoar.vercel.app',
-    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
-  ];
-  
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(200);
-});
+// Preflight requests are handled by the cors package above
 
 // Special handling for upload routes to support both base64 and multipart
 app.use('/api/upload', (req, res, next) => {
