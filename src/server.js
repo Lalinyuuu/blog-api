@@ -17,6 +17,9 @@ dotenv.config({ path: envPath });
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Vercel
+app.set('trust proxy', 1);
+
 // Basic security headers
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -26,13 +29,15 @@ app.use((req, res, next) => {
 });
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 1000 : 1000, // 1000 requests for both dev and production
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 1000 : 1000,
   message: { error: 'Too many requests' },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req, res) => {
+    return req.headers['x-forwarded-for'] || req.ip;
+  },
   skip: (req) => {
-    // Skip rate limit for health checks and specific routes
     if (req.path === '/health' || req.path.startsWith('/api/upload')) {
       return true;
     }
@@ -40,10 +45,9 @@ const limiter = rateLimit({
   }
 });
 
-// Apply rate limiter to all routes
 app.use(limiter);
 
-// CORS configuration - Manual middleware to ensure correct origin is set
+// CORS configuration
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
@@ -53,17 +57,13 @@ const allowedOrigins = [
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
 ];
 
-// CORS middleware - MUST be before routes
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  
-  // Check if origin is allowed
   const isVercelApp = origin && origin.includes('vercel.app');
   const isLocalhost = origin && origin.startsWith('http://localhost');
   const isAllowed = origin && (allowedOrigins.includes(origin) || isVercelApp || isLocalhost);
   
   if (origin && isAllowed) {
-    // Set the EXACT origin from the request, not a hardcoded value
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -72,7 +72,6 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Max-Age', '86400');
   }
   
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -81,35 +80,26 @@ app.use((req, res, next) => {
   next();
 });
 
-// Handle both JSON (base64) and multipart (form) uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Preflight requests are handled by the cors package above
-
-// Special handling for upload routes to support both base64 and multipart
 app.use('/api/upload', (req, res, next) => {
-  // If it's a JSON request with base64 data, don't parse as multipart
   if (req.headers['content-type']?.includes('application/json')) {
     return next();
   }
-  // Otherwise, let it be handled by formidable in the controller
   next();
 });
 
-// Increase timeout for file uploads
 app.use((req, res, next) => {
-  // Set timeout to 5 minutes for upload routes
   if (req.path.includes('/upload')) {
-    req.setTimeout(300000); // 5 minutes
-    res.setTimeout(300000); // 5 minutes
+    req.setTimeout(300000);
+    res.setTimeout(300000);
   }
   next();
 });
+
 app.use('/api', routes);
 app.use('/api/notifications', notificationRoutes);
-
-// Add direct routes without /api prefix for frontend compatibility
 app.use('/statistics', statisticsRoutes);
 app.use('/notifications', notificationRoutes);
 
@@ -130,19 +120,14 @@ const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Promise Rejection:', err);
-  // Don't exit the process - just log the error
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error('❌ Uncaught Exception:', err);
-  // Don't exit the process - just log the error
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('👋 SIGTERM received, shutting down gracefully');
   server.close(() => {
