@@ -27,24 +27,39 @@ app.use((req, res, next) => {
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 1000 requests สำหรับ dev
+  max: process.env.NODE_ENV === 'production' ? 1000 : 1000, // 1000 requests for both dev and production
   message: { error: 'Too many requests' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => process.env.NODE_ENV !== 'production' // Skip rate limit in development
+  skip: (req) => {
+    // Skip rate limit for health checks and specific routes
+    if (req.path === '/health' || req.path.startsWith('/api/upload')) {
+      return true;
+    }
+    return process.env.NODE_ENV !== 'production';
+  }
 });
 
-// Only use rate limiter in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(limiter);
-}
+// Apply rate limiter to all routes
+app.use(limiter);
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
-    'https://mycoderoar.vercel.app',
-    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
+      'https://mycoderoar.vercel.app',
+      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
@@ -74,6 +89,8 @@ app.options('/api/upload/*', (req, res) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers');
