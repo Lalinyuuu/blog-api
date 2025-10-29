@@ -43,66 +43,43 @@ const limiter = rateLimit({
 // Apply rate limiter to all routes
 app.use(limiter);
 
-// CORS configuration
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://mycoderoar.vercel.app',
-      'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
-      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
-    ];
-    
-    // Allow any Vercel preview URL (for dynamic deployments)
-    const isVercelPreview = origin && (origin.includes('.vercel.app') || origin.includes('vercel.app'));
-    
-    // Debug logging
-    console.log('CORS check - Origin:', origin);
-    console.log('CORS check - Is Vercel preview:', isVercelPreview);
-    console.log('CORS check - Allowed origins:', allowedOrigins);
-    
-    if (allowedOrigins.includes(origin) || isVercelPreview) {
-      console.log('CORS check - ALLOWED');
-      callback(null, true);
-    } else if (process.env.NODE_ENV !== 'production') {
-      // In development, be more permissive
-      console.log('CORS check - ALLOWED (development mode)');
-      callback(null, true);
-    } else {
-      console.log('CORS check - BLOCKED');
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'x-request-id',
-    'x-requested-with',
-    'accept',
-    'origin',
-    'access-control-request-method',
-    'access-control-request-headers',
-    'X-CSRF-Token',
-    'X-Requested-With',
-    'Accept',
-    'Accept-Version',
-    'Content-Length',
-    'Content-MD5',
-    'Content-Type',
-    'Date',
-    'X-Api-Version'
-  ],
-  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
-}));
+// CORS configuration - Manual middleware to ensure correct origin is set
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:3001',
+  'https://mycoderoar.vercel.app',
+  'https://blog-api-tau-sand.vercel.app',
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+];
 
-// CORS is handled by the cors package above
+// CORS middleware - MUST be before routes
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Check if origin is allowed
+  const isVercelApp = origin && origin.includes('vercel.app');
+  const isLocalhost = origin && origin.startsWith('http://localhost');
+  const isAllowed = origin && (allowedOrigins.includes(origin) || isVercelApp || isLocalhost);
+  
+  if (origin && isAllowed) {
+    // Set the EXACT origin from the request, not a hardcoded value
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  next();
+});
 // Handle both JSON (base64) and multipart (form) uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
