@@ -39,9 +39,14 @@ if (process.env.NODE_ENV === 'production') {
   app.use(limiter);
 }
 app.use(cors({
-  origin: process.env.FRONTEND_URL || ['http://localhost:5173'],
+  origin: [
+    'http://localhost:5173',
+    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
+    'https://mycoderoar.vercel.app',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
     'Authorization', 
@@ -59,7 +64,17 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Handle preflight requests for upload routes
 app.options('/api/upload/*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || 'http://localhost:5173');
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
+    'https://mycoderoar.vercel.app',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id, x-requested-with, accept, origin, access-control-request-method, access-control-request-headers');
   res.header('Access-Control-Allow-Credentials', 'true');
