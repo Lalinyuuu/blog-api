@@ -1,13 +1,13 @@
 import express from 'express';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.js';
 import { 
   listPosts, 
   getPostBySlug, 
   getPostById,
   getPostComments,
-  getPostInteractionStats,
-  getRelatedPosts
+  getPostInteractionStats
 } from '../controllers/posts/postController.js';
+import { getRelatedPosts } from '../controllers/posts/getRelatedPosts.js';
 import {
   likePost,
   unlikePost,
@@ -19,19 +19,27 @@ import {
 
 const router = express.Router();
 
+// 1. Exact match routes - ไม่มี parameter
 router.get('/', listPosts);
-router.get('/slug/:slug', getPostBySlug);
-router.get('/:id/related', getRelatedPosts);
-router.get('/:id', getPostById);
 
-router.get('/:id/stats', getPostInteractionStats);
+// 2. Specific literal routes - มีชื่อ path ที่แน่นอน
+router.get('/slug/:slug', optionalAuthenticate, getPostBySlug);
+
+// 3. Specific parametric routes - ต้องมาก่อน generic routes
+// Routes with /id/something ต้องขึ้นมาก่อน /id
+router.get('/:id/related', optionalAuthenticate, getRelatedPosts);
+router.get('/:id/stats', optionalAuthenticate, getPostInteractionStats);
+router.get('/:id/comments', optionalAuthenticate, getPostComments);
+
+// 4. POST, PUT, DELETE routes ของ specific paths
 router.post('/:id/like', authenticate, likePost);
-router.get('/:id/comments', getPostComments);
 router.post('/:id/comments', authenticate, createComment);
 router.put('/:postId/comments/:commentId', authenticate, updateComment);
 router.delete('/:postId/comments/:commentId', authenticate, deleteComment);
 router.post('/:id/share', authenticate, sharePost);
 
-router.post('/admin/posts', authenticate, (req, res) => adminCreatePost(req, res));
+// 5. Generic routes - ต้องมาสุดท้าย
+// เพราะ :id จะ match กับอะไรก็ได้
+router.get('/:id', optionalAuthenticate, getPostById);
 
 export default router;

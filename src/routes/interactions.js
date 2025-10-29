@@ -13,9 +13,15 @@ import {
   sharePost
 } from '../controllers/interactions/shareController.js';
 import {
-  checkUserInteraction
+  checkUserInteraction,
+  incrementViewCount
 } from '../controllers/interactions/interactionController.js';
-import { authenticate } from '../middleware/auth.js';
+import {
+  likeComment,
+  unlikeComment,
+  getCommentLikeStatus
+} from '../controllers/interactions/commentLikeController.js';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -35,5 +41,15 @@ router.get('/saved-posts', authenticate, getSavedPosts);
 
 // Share Post
 router.post('/posts/:postId/share', sharePost); // ไม่ต้อง authenticate เพื่อให้ anonymous shares ได้
+
+// Increment View Count
+router.post('/posts/:postId/view', incrementViewCount); // ไม่ต้อง authenticate เพื่อให้ทุกคนนับ view ได้
+
+// Like/Unlike Comments
+router.post('/comments/:id/like', authenticate, likeComment);
+router.delete('/comments/:id/like', authenticate, unlikeComment);
+
+// Get Comment Like Status (optional auth)
+router.get('/comments/:id/status', optionalAuthenticate, getCommentLikeStatus);
 
 export default router;
