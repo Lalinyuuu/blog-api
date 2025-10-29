@@ -43,12 +43,13 @@ const limiter = rateLimit({
 // Apply rate limiter to all routes
 app.use(limiter);
 
-// CORS configuration - More explicit approach
+// CORS configuration - Allow all Vercel domains
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://localhost:3001',
   'https://mycoderoar.vercel.app',
-  'https://mycoderoar-git-feature-fix-untitled-bff3ec-lalinyuuus-projects.vercel.app',
+  'https://blog-api-tau-sand.vercel.app',
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
 ];
 
@@ -56,28 +57,19 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('CORS check - No origin (allowed)');
       return callback(null, true);
     }
     
-    // Allow any Vercel preview URL (for dynamic deployments)
-    const isVercelPreview = origin.includes('.vercel.app') || origin.includes('vercel.app');
+    // Allow any Vercel app URL (production and preview)
+    const isVercelApp = origin.includes('vercel.app');
+    const isLocalhost = origin.startsWith('http://localhost');
     
-    // Debug logging
-    console.log('CORS check - Origin:', origin);
-    console.log('CORS check - Is Vercel preview:', isVercelPreview);
-    console.log('CORS check - Allowed origins:', allowedOrigins);
-    console.log('CORS check - Origin in allowed list:', allowedOrigins.includes(origin));
-    
-    if (allowedOrigins.includes(origin) || isVercelPreview) {
-      console.log('CORS check - ALLOWED for origin:', origin);
+    if (allowedOrigins.includes(origin) || isVercelApp || isLocalhost) {
       callback(null, true);
     } else if (process.env.NODE_ENV !== 'production') {
       // In development, be more permissive
-      console.log('CORS check - ALLOWED (development mode) for origin:', origin);
       callback(null, true);
     } else {
-      console.log('CORS check - BLOCKED for origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -110,8 +102,9 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   
   if (origin) {
-    const isVercelPreview = origin.includes('.vercel.app') || origin.includes('vercel.app');
-    const isAllowed = allowedOrigins.includes(origin) || isVercelPreview;
+    const isVercelApp = origin.includes('vercel.app');
+    const isLocalhost = origin.startsWith('http://localhost');
+    const isAllowed = allowedOrigins.includes(origin) || isVercelApp || isLocalhost;
     
     if (isAllowed) {
       res.header('Access-Control-Allow-Origin', origin);
